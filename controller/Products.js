@@ -4,7 +4,9 @@ exports.createProduct = async (req, res) => {
   // this product we have to get from API body
   const product = new Product(req.body);
   try {
+    console.log(" i HAVE HIT THE PRODUCT ENDPOINT");
     const doc = await product.save();
+    console.log("product added ",JSON.stringify(doc));
     res.status(201).json(doc);
   } catch (err) {
     res.status(400).json(err);
@@ -120,3 +122,16 @@ exports.updateProduct = async (req, res) => {
 //     res.status(400).json(err);
 //   }
 // };
+
+//delete product by id
+exports.deleteProduct= async (req, res,next) => {
+  const {id}=req.params;
+  try {
+    const product = await Product.findByIdAndDelete(id, req.body, {new:true});
+    console.log("Product deleted: ", product);
+    res.status(200).json(product);
+  } catch (err) {
+    res.status(400).json(err);
+  }
+
+}
