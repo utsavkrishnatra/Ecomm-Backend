@@ -22,7 +22,7 @@ const userSchema = new Schema({
     match: /^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$/,
   },
   password: {
-    type: String,
+    type: Buffer,
     required: true,
     minlength: 6, // You can adjust the minimum length as needed
   },
@@ -30,8 +30,10 @@ const userSchema = new Schema({
   addresses: { type: [Schema.Types.Mixed] }, 
   // TODO:  We can make a separate Schema for this
   name: { type: String },
-  orders: { type: [Schema.Types.Mixed] }
+  orders: { type: [Schema.Types.Mixed] },
+  salt:Buffer
 });
+
 
 let virtual=userSchema.virtual('id')
 virtual.get(function(){
