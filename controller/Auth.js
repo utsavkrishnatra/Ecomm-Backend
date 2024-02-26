@@ -33,7 +33,7 @@ exports.loginUser = async function(req, res, next) {
           }
 
           const token = jwt.sign(sanitizeUser(user), SECRET_KEY);
-          res.cookie('jwt', token, { expires: new Date(Date.now() + 60 * 60 * 1000), httpOnly: true });
+          res.cookie('jwt', token, { expires: new Date(Date.now() + 60 * 60 * 1000)});
           res.status(201).json(sanitizeUser(user));
         }
       );
@@ -73,7 +73,10 @@ exports.createUser = async (req, res) => {
         // });
         const token = jwt.sign(sanitizeUser(doc), SECRET_KEY);
         console.log("\nStep 2: sending the token..........");
-        res.cookie('jwt', token ,{ expires: new Date(Date.now() + 60*60*1000 ), httpOnly: true })
+        //Send the token dynamically to the server----------------------------------------------------------------
+        res.cookie('jwt', token ,{ expires: new Date(Date.now() + 60*60*1000 ) })
+        //Sending it statically to the server--------------------------------------------------------------------
+        
         res.status(201).json(token);
 
       }
@@ -86,6 +89,17 @@ exports.createUser = async (req, res) => {
   exports.checkUser = async (req, res) => {
     //console.log("Deserialize will be called after this!!");
     console.log("\n------------------------entered check-user--------------------------\n");
-    console.log("the user found is", req.user);
-    res.json({status:'success',user: req.user});
+    const user=await req.user;
+    console.log("the user found is",user);
+    res.json(sanitizeUser(user));
   }
+
+
+  exports.logout = async (req, res) => {
+    res
+      .cookie('jwt', null, {
+        expires: new Date(Date.now()),
+        httpOnly: true,
+      })
+      .sendStatus(200)
+  };
