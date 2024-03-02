@@ -19,7 +19,8 @@ exports.fetchAllProducts = async (req, res) => {
   // pagination = {_page:1,_limit=10}
   // TODO : we have to try with multiple category and brands after change in front-end
   let condition = {}
-  if(!req.query.admin){
+  console.log("the person requesting query is:",req.user);
+  if(!req.user.role){
       condition.deleted = {$ne:true}
   }
   
