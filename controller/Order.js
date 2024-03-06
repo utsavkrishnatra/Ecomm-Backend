@@ -1,5 +1,6 @@
 const { Order } = require("../model/Order");
-
+const{User}=require("../model/User");
+const {sendMail,invoiceTemplate }=require("../services/common.js")
 exports.fetchOrdersByUser = async (req, res) => {
     const { userId } = req.params;
     try {
@@ -11,19 +12,32 @@ exports.fetchOrdersByUser = async (req, res) => {
     }
   };
 
-  exports.createOrder = async (req, res,next) => {
-    console.log("I am in order controller.... ",req.body);
+  // exports.createOrder = async (req, res,next) => {
+  //   console.log("I am in order controller.... ",req.body);
+  //   const order = new Order(req.body);
+  //   try {
+  //     console.log("I am in order controller.... ");
+  //     const doc = await order.save();
+  //     console.log("Created Order Successfully: ",doc)
+  //     res.status(201).json(doc);
+  //   } catch (err) {
+  //     res.status(400).json(err);
+  //   }
+  // };
+  exports.createOrder = async (req, res) => {
     const order = new Order(req.body);
     try {
-      console.log("I am in order controller.... ");
       const doc = await order.save();
-      console.log("Created Order Successfully: ",doc)
+      const user = await User.findById(order.user)
+       // we can use await for this also 
+       sendMail({to:user.email,html:invoiceTemplate(order),text:"",subject:'Order Received' })
+             
       res.status(201).json(doc);
     } catch (err) {
       res.status(400).json(err);
     }
   };
-
+  
   exports.deleteOrder = async (req, res) => {
       const { id } = req.params;
       try {
