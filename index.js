@@ -21,13 +21,59 @@ const {User} = require('./model/User');
 const passport = require('passport');
 const JwtStrategy = require('passport-jwt').Strategy;
 const ExtractJwt = require('passport-jwt').ExtractJwt;
-
+const nodemailer=require('nodemailer');
+const {Order}=require('./model/Order');
 // const session = require('express-session');
+
+//----------------------------socket.io connection on server------------------------
+
+const socketio = require('socket.io');
+
+const httpServer = require('http').createServer(server);
+const io = socketio(httpServer,{
+  cors: {
+    origin: "http://localhost:3000"
+  }
+});
+
+// Define an array to store connected sockets
+// const connectedSockets = [];
+// const connectedSocketEventsMap = new Map();
+//-----------------------------------------------------------------------------------
+//---------------------------------------socket test --------------------------------
+// io.on('connection', (socket) => {
+//   console.log(`New client connected: ${socket.id}`);
+    
+//   // Add the socket to the array of connected sockets
+//   connectedSockets.push(socket);
+//   connectedSocketEvents.
+
+//   // Listen for messages from the client
+//   socket.on('message', (data) => {
+//     console.log('Message received:', data.msg);
+//     // Send a message back to the client who sent the message
+//     socket.emit('message', {msg:"hello client,from server"});
+//   });
+
+
+//    // Handle disconnection
+//    socket.on('disconnect', () => {
+//     console.log('Client disconnected');
+    
+//     // Remove the socket from the array when disconnected
+//     const index = connectedSockets.indexOf(socket);
+//     if (index !== -1) {
+//       connectedSockets.splice(index, 1);
+//     }
+//   });
+// });
+
+//----------------------------------------------------------------------------------------------------
 
  //---------------------------------------Adding webhook---------------------------------------------------------------
  //web hook me already express.raw middleware enabled hota hai, toh usse explicitly enable krne ki azaroorat nhin hai
  const webhook_endpoint_secret=process.env.WEBHOOK_SIGNIN_SECRET_KEY;
- server.post('/webhook', express.raw({type: 'application/json'}), (request, response) => {
+ server.post('/webhook', express.raw({type: 'application/json'}), async (request, response) => {
   let event = request.body;
   // Only verify the event if you have an endpoint secret defined.
   // Otherwise use the basic event deserialized with JSON.parse
@@ -53,6 +99,15 @@ const ExtractJwt = require('passport-jwt').ExtractJwt;
       console.log(`PaymentIntent for ${paymentIntent.amount} was successful!`);
       // Then define and call a method to handle the successful payment intent.
       // handlePaymentIntentSucceeded(paymentIntent);
+      try {
+        // Update the paymentStatus of the order associated with the paymentIntent
+        const orderId = paymentIntent.metadata.order_id;
+        await Order.findByIdAndUpdate(orderId, { paymentStatus: 'received' });
+        console.log(`PaymentStatus for order ${orderId} updated to payment <b>received</b>!`);
+      } catch (err) {
+        console.log(`Error updating payment status: ${err}`);
+        return response.sendStatus(500);
+      }
       break;
     case 'payment_method.attached':
       const paymentMethod = event.data.object;
@@ -63,8 +118,16 @@ const ExtractJwt = require('passport-jwt').ExtractJwt;
       // Unexpected event type
       console.log(`Unhandled event type ${event.type}.`);
   }
-
+ 
+ // Emitting the event to the connected clients
+  // connectedSockets.forEach((socket) => {
+  //   console.log("i am emitting event 'order_updated' for " + socket.id);
+  //   connectedSocketEventsMap[socket.id]=socket;
+  //   // socket.emit("order_updated");
+  // });
+  // io.emit("order_updated");
   // Return a 200 response to acknowledge receipt of the event
+  // console.log("I am acknowledge receipt");
   response.send();
 });
  
@@ -119,6 +182,17 @@ async function main() {
   }
 
  main().catch(err => console.log(err));
+
+ //---test--------------------------------
+
+//  function test(req,res)
+//  {
+   
+//     // res.send("Welcome");
+//     // res.send("  Utsav!!");
+//     res.end("Bye...")
+//    // res.send("Welcome again!!");
+//  }
  //----------------------------------------------------------------
  server.use(bodyParser.json());
  server.use('/products',isAuth(),productRouter)
@@ -129,7 +203,7 @@ async function main() {
  server.use('/orders', isAuth(),ordersRouter)
  server.use('/carts', isAuth(),cartRouter);
 
- 
+
  //-------------------------adding stripe payment gateway-----------------------------------------------
 
 
@@ -147,12 +221,14 @@ async function main() {
  
  server.post("/create-payment-intent", async (req, res) => {
    console.log("Request body: " + JSON.stringify(await req.body));
-   const { totalAmount } = await req.body;
+  //  const { totalAmount } = await req.body;
+   const { totalAmount, orderId } = req.body;
  
    // Create a PaymentIntent with the order amount and currency
    const paymentIntent = await stripe.paymentIntents.create({
      amount: calculateOrderAmount(totalAmount),
      currency: "cad",
+     metadata: { order_id: orderId },
      // In the latest version of the API, specifying the `automatic_payment_methods` parameter is optional because Stripe enables its functionality by default.
      automatic_payment_methods: {
        enabled: true,
@@ -246,9 +322,9 @@ async function main() {
 //   }
 
 // });
-
+//------adding proxy for exposing localhost:8080 to the public--------------------------------
 
 const port=8080
- server.listen(port, function(){
+httpServer.listen(port, function(){
     console.log("Server is running on port: "+port);
  })
