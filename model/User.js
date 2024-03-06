@@ -31,8 +31,9 @@ const userSchema = new Schema({
   // TODO:  We can make a separate Schema for this
   name: { type: String },
   orders: { type: [Schema.Types.Mixed] },
-  salt:Buffer
-});
+  salt:Buffer,
+  resetPasswordToken: {type: String, default:''}
+},{timestamps: true});
 
 
 let virtual=userSchema.virtual('id')
