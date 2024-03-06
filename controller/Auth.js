@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const { sanitizeUser } = require('../services/common');
 const SECRET_KEY = 'SECRET_KEY';
 const jwt = require('jsonwebtoken');
+const {sendMail} = require('../services/common');
 
 
 exports.loginUser = async function(req, res, next) {
@@ -77,7 +78,7 @@ exports.createUser = async (req, res) => {
         res.cookie('jwt', token ,{ expires: new Date(Date.now() + 60*60*1000 ) })
         //Sending it statically to the server--------------------------------------------------------------------
         
-        res.status(201).json(token);
+        res.status(201).json(sanitizeUser(doc));
 
       }
     );
@@ -102,4 +103,68 @@ exports.createUser = async (req, res) => {
         httpOnly: true,
       })
       .sendStatus(200)
+  };
+
+
+  exports.resetPasswordRequest = async (req, res) => {
+    console.log("i am in reset password request, and the request body is " + JSON.stringify(req.body));
+    const email = req.body.email;
+    const user = await User.findOne({ email: email });
+    console.log("The user is",user);
+    if (user) {
+      //console.log("I am inside");
+      const token = crypto.randomBytes(48).toString('hex');
+      user.resetPasswordToken = token;
+      await user.save();
+      console.log("saved the user",user);
+      // Also set token in email
+      const resetPageLink =
+        'http://localhost:3000/reset-password?token=' + token + '&email=' + email;
+      const subject = 'reset password for e-commerce';
+      const html = `<p>Click <a href='${resetPageLink}'>here</a> to Reset Password</p>`;
+      const text=""
+      // lets send email and a token in the mail body so we can verify that user has clicked right link
+  
+      if (email) {
+        console.log("Sending the email...");
+        const response = await sendMail({ to: email, subject,text, html });
+        res.json(response);
+      } else {
+        console.log(`The requested user ${email} cannot be found!!`);
+        res.sendStatus(400);
+      }
+    } else {
+      res.sendStatus(400);
+    }
+  };
+  
+  exports.resetPassword = async (req, res) => {
+    const { email, password, token } = req.body;
+  
+    const user = await User.findOne({ email: email, resetPasswordToken: token });
+    if (user) {
+      const salt = crypto.randomBytes(16);
+      crypto.pbkdf2(
+        req.body.password,
+        salt,
+        310000,
+        32,
+        'sha256',
+        async function (err, hashedPassword) {
+          user.password = hashedPassword;
+          user.salt = salt;
+          await user.save();
+          const subject = 'password successfully reset for e-commerce';
+          const html = `<p>Successfully able to Reset Password</p>`;
+          if (email) {
+            const response = await sendMail({ to: email, subject, html });
+            res.json(response);
+          } else {
+            res.sendStatus(400);
+          }
+        }
+      );
+    } else {
+      res.sendStatus(400);
+    }
   };
